@@ -27,14 +27,26 @@ type NewUser struct {
 	Password string
 }
 
+func getHashedPassword(password string) (string, error) {
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hashBytes), nil
+}
+
+func checkPassword(hash []byte, password string) bool {
+	return bcrypt.CompareHashAndPassword(hash, []byte(password)) == nil
+}
+
 func (us *UserService) Create(nu *NewUser) (*User, error) {
 	nu.Email = strings.ToLower(nu.Email)
-	hashBytes, err := bcrypt.GenerateFromPassword([]byte(nu.Password), bcrypt.DefaultCost)
+
+	hash, err := getHashedPassword(nu.Password)
 	if err != nil {
 		return nil, err
 	}
-
-	hash := string(hashBytes)
 
 	row := us.DB.QueryRow(`
 		INSERT INTO users(email, forename, surname, password_hash)
@@ -54,4 +66,28 @@ func (us *UserService) Create(nu *NewUser) (*User, error) {
 		Email:        nu.Email,
 		PasswordHash: hash,
 	}, nil
+}
+
+func (us *UserService) Authenticate(email, password string) (*User, error) {
+	email = strings.ToLower(email)
+
+	user := &User{
+		Email: email,
+	}
+
+	row := us.DB.QueryRow(`
+		SELECT id, password_hash, forename, surname 
+		FROM users
+		WHERE email=$1`, email)
+
+	err := row.Scan(&user.ID, &user.PasswordHash, &user.Forename, &user.Surname)
+	if err != nil {
+		return nil, err
+	}
+
+	if checkPassword([]byte(user.PasswordHash), password) {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	return user, nil
 }

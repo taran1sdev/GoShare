@@ -36,8 +36,15 @@ func main() {
 		"layout.gohtml", "signup.gohtml",
 	))
 
-	r.Get("/signup", usersC.New)
-	r.Post("/users", usersC.Create)
+	usersC.Templates.SignIn = views.Must(views.ParseFS(
+		templates.FS,
+		"layout.gohtml", "signin.gohtml",
+	))
 
+	r.Get("/signup", usersC.New)
+	r.Get("/signin", usersC.SignIn)
+
+	r.Post("/users", usersC.Create)
+	r.Post("/signin", usersC.Authenticate)
 	http.ListenAndServe(":3000", r)
 }

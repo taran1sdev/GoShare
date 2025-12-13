@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 
 	"taran1s.share/models"
@@ -9,7 +8,8 @@ import (
 
 type Users struct {
 	Templates struct {
-		New Template
+		New    Template
+		SignIn Template
 	}
 
 	UserService *models.UserService
@@ -33,11 +33,36 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 		Password: r.FormValue("password"),
 	}
 
-	user, err := u.UserService.Create(data)
+	_, err = u.UserService.Create(data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	u.Templates.SignIn.Execute(w, data)
+}
+
+func (u Users) SignIn(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Email string
+	}
+
+	data.Email = r.FormValue("email")
+	u.Templates.SignIn.Execute(w, data)
+}
+
+func (u Users) Authenticate(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	fmt.Fprint(w, "ID: ", user.ID, "email: ", user.Email, "forename: ", user.Forename)
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	_, err = u.UserService.Authenticate(email, password)
+	if err != nil {
+		u.Templates.SignIn.Execute(w, nil)
+	}
 }
