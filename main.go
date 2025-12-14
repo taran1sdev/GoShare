@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/csrf"
 	"taran1s.share/controllers"
+	"taran1s.share/migrations"
 	"taran1s.share/models"
 	"taran1s.share/templates"
 	"taran1s.share/views"
@@ -18,6 +20,11 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
+
+	err = models.MigrateFS(db, migrations.FS, ".")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	r := chi.NewRouter()
 
@@ -48,10 +55,14 @@ func main() {
 	))
 
 	r.Get("/signup", usersC.New)
-	r.Get("/signin", usersC.SignIn)
-	r.Get("/users/me", usersC.CurrentUser)
 	r.Post("/users", usersC.Create)
+
+	r.Get("/signin", usersC.SignIn)
 	r.Post("/signin", usersC.Authenticate)
+
+	r.Post("/signout", usersC.SignOut)
+
+	r.Get("/users/me", usersC.CurrentUser)
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "I think you got lost...", http.StatusNotFound)
@@ -64,6 +75,8 @@ func main() {
 		csrf.Secure(false),
 		csrf.TrustedOrigins([]string{"localhost:3000"}),
 	)
+
+	fmt.Println("Server starting on :3000")
 
 	http.ListenAndServe(":3000", csrfMw(r))
 }

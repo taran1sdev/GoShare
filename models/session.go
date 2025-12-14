@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
-	"errors"
 	"fmt"
 
 	"taran1s.share/rand"
@@ -51,23 +50,14 @@ func (ss *SessionService) Create(userID int) (*Session, error) {
 		TokenHash: ss.hash(token),
 	}
 
-	// First try and update user's session
 	row := ss.DB.QueryRow(`
-		UPDATE sessions
+		INSERT INTO sessions (user_id, token_hash)
+		VALUES($1,$2) ON CONFLICT (user_id) DO
+		UPDATE
 		SET token_hash = $2
-		WHERE user_id = $1
 		RETURNING id;`, session.UserID, session.TokenHash)
+
 	err = row.Scan(&session.ID)
-	// If no session exists for the user create a new one
-	if errors.Is(sql.ErrNoRows, err) {
-		row = ss.DB.QueryRow(`
-		INSERT INTO sessions(user_id, token_hash)
-		VALUES($1,$2)
-		RETURNING id;`, session.UserID, session.TokenHash)
-
-		err = row.Scan(&session.ID)
-	}
-
 	if err != nil {
 		return nil, fmt.Errorf("create: %w", err)
 	}
@@ -95,7 +85,7 @@ func (ss *SessionService) User(token string) (*User, error) {
 func (ss *SessionService) Delete(token string) error {
 	tokenHash := ss.hash(token)
 	_, err := ss.DB.Exec(`
-		DELETE FROM session
+		DELETE FROM sessions
 		WHERE token_hash = $1;`, tokenHash)
 	if err != nil {
 		return fmt.Errorf("delete: %w", err)
