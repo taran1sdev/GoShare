@@ -3,6 +3,8 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"html/template"
+	"net/mail"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -21,10 +23,15 @@ type UserService struct {
 }
 
 type NewUser struct {
-	Email    string
-	Forename string
-	Surname  string
-	Password string
+	Email        string
+	Forename     string
+	Surname      string
+	Password     string
+	ConfirmPass  string
+	InvalidEmail bool
+	NoMatch      bool
+	AuthFailed   bool
+	CSRFField    template.HTML
 }
 
 func getHashedPassword(password string) (string, error) {
@@ -40,12 +47,27 @@ func checkPassword(hash []byte, password string) bool {
 	return bcrypt.CompareHashAndPassword(hash, []byte(password)) == nil
 }
 
-func (us *UserService) Create(nu *NewUser) (*User, error) {
+func checkEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
+
+func (us *UserService) Create(nu *NewUser) error {
 	nu.Email = strings.ToLower(nu.Email)
+
+	if !checkEmail(nu.Email) {
+		nu.InvalidEmail = true
+		return fmt.Errorf("invalid email address")
+	}
+
+	if nu.Password != nu.ConfirmPass {
+		nu.NoMatch = true
+		return fmt.Errorf("passwords do not match")
+	}
 
 	hash, err := getHashedPassword(nu.Password)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	row := us.DB.QueryRow(`
@@ -56,16 +78,10 @@ func (us *UserService) Create(nu *NewUser) (*User, error) {
 	err = row.Scan(&id)
 
 	if err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+		return fmt.Errorf("create user: %w", err)
 	}
 
-	return &User{
-		ID:           id,
-		Forename:     nu.Forename,
-		Surname:      nu.Surname,
-		Email:        nu.Email,
-		PasswordHash: hash,
-	}, nil
+	return nil
 }
 
 func (us *UserService) Authenticate(email, password string) (*User, error) {
@@ -85,7 +101,7 @@ func (us *UserService) Authenticate(email, password string) (*User, error) {
 		return nil, err
 	}
 
-	if checkPassword([]byte(user.PasswordHash), password) {
+	if !checkPassword([]byte(user.PasswordHash), password) {
 		return nil, fmt.Errorf("invalid credentials")
 	}
 

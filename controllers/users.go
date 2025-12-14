@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/gorilla/csrf"
 	"taran1s.share/models"
 )
 
@@ -16,7 +17,11 @@ type Users struct {
 }
 
 func (u Users) New(w http.ResponseWriter, r *http.Request) {
-	u.Templates.New.Execute(w, nil)
+	data := &models.NewUser{}
+
+	data.CSRFField = csrf.TemplateField(r)
+
+	u.Templates.New.Execute(w, data)
 }
 
 func (u Users) Create(w http.ResponseWriter, r *http.Request) {
@@ -27,15 +32,21 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := &models.NewUser{
-		Email:    r.FormValue("email"),
-		Forename: r.FormValue("forename"),
-		Surname:  r.FormValue("surname"),
-		Password: r.FormValue("password"),
+		Email:        r.FormValue("email"),
+		Forename:     r.FormValue("forename"),
+		Surname:      r.FormValue("surname"),
+		Password:     r.FormValue("password"),
+		ConfirmPass:  r.FormValue("confirm"),
+		InvalidEmail: false,
+		NoMatch:      false,
+		AuthFailed:   false,
 	}
 
-	_, err = u.UserService.Create(data)
+	data.CSRFField = csrf.TemplateField(r)
+
+	err = u.UserService.Create(data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		u.Templates.New.Execute(w, data)
 		return
 	}
 
@@ -43,11 +54,12 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u Users) SignIn(w http.ResponseWriter, r *http.Request) {
-	var data struct {
-		Email string
-	}
+	data := &models.NewUser{}
 
 	data.Email = r.FormValue("email")
+	data.AuthFailed = false
+	data.CSRFField = csrf.TemplateField(r)
+
 	u.Templates.SignIn.Execute(w, data)
 }
 
@@ -58,11 +70,24 @@ func (u Users) Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := r.FormValue("email")
-	password := r.FormValue("password")
-
-	_, err = u.UserService.Authenticate(email, password)
-	if err != nil {
-		u.Templates.SignIn.Execute(w, nil)
+	data := &models.NewUser{
+		Email:      r.FormValue("email"),
+		Password:   r.FormValue("password"),
+		AuthFailed: true,
 	}
+
+	user, err := u.UserService.Authenticate(data.Email, data.Password)
+	if err != nil {
+		u.Templates.SignIn.Execute(w, data)
+		return
+	}
+
+	cookie := http.Cookie{
+		Name:     "email",
+		Value:    user.Email,
+		Path:     "/",
+		HttpOnly: true,
+	}
+
+	http.SetCookie(w, &cookie)
 }

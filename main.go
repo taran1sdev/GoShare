@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/csrf"
 	"taran1s.share/controllers"
 	"taran1s.share/models"
 	"taran1s.share/templates"
@@ -46,5 +47,18 @@ func main() {
 
 	r.Post("/users", usersC.Create)
 	r.Post("/signin", usersC.Authenticate)
-	http.ListenAndServe(":3000", r)
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "I think you got lost...", http.StatusNotFound)
+	})
+
+	// Hard coded and insecure for now
+	csrfKey := "gFvi45R4fy7xNVlnEeZtQbfAVCYEIAUX"
+	csrfMw := csrf.Protect(
+		[]byte(csrfKey),
+		csrf.Secure(false),
+		csrf.TrustedOrigins([]string{"localhost:3000"}),
+	)
+
+	http.ListenAndServe(":3000", csrfMw(r))
 }

@@ -7,34 +7,171 @@
     </h1>
 
     <form action="/users" method="POST">
-
+    
+    <div class="hidden">
+        {{.CSRFField}}
+    </div>
     <div class="py-2">
-        <label for="email" class="text-sm font-semibold">Email Address</label>
-        <input name="email" id="email" placeholder="Email Address" required autocomplete="email" class="w-full px-3 py-2 border border-gray-300 placeholder-gray-600 text-gray-800 rounded" />
+        <label 
+         for="email" 
+         class="text-sm font-semibold">
+            Email Address
+        </label>
+        <input 
+        name="email" 
+        id="email" 
+        placeholder="Email Address" 
+        required 
+        autocomplete="email" 
+        class="
+        w-full 
+        px-3 
+        py-2 
+        border 
+        border-gray-300 
+        placeholder-gray-600 
+        text-gray-800 
+        rounded" 
+        {{if .Email}}
+        value="{{.Email}}"
+        {{end}}
+        {{if not .Email}}
+        autofocus
+        {{end}}
+        />
+    </div>
+    {{if .InvalidEmail}}
+    <div class="py-1 w-full flex justify-center">
+        <p class="text-xs font-semibold text-red-500">Invalid Email Address</p>
+    </div>
+    {{end}}
+    
+    <div class="py-2">
+        <label 
+            for="forename" 
+            class="text-sm font-semibold">
+            Forename
+        </label>
+        <input 
+        name="forename" 
+        id="forename" 
+        placeholder="Forename" 
+        required 
+        autocomplete="forename" 
+        class="
+        w-full 
+        px-3 
+        py-2 
+        border 
+        border-gray-300 
+        placeholder-gray-600 
+        text-gray-800 
+        rounded"
+        {{if .Forename}}
+        value="{{.Forename}}"
+        {{end}}
+        />
     </div>
 
     <div class="py-2">
-        <label for="forename" class="text-sm font-semibold">Forename</label>
-        <input name="forename" id="forename" placeholder="Forename" required autocomplete="forename" class="w-full px-3 py-2 border border-gray-300 placeholder-gray-600 text-gray-800 rounded"/>
+        <label 
+            for="surname" 
+            class="text-sm font-semibold">
+            Surname
+        </label>
+        <input 
+        name="surname" 
+        id="surname" 
+        placeholder="Surname" 
+        required 
+        autocomplete="surname" 
+        class="
+        w-full 
+        px-3 
+        py-2 
+        border 
+        border-gray-300 
+        placeholder-gray-600 
+        text-gray-800 
+        rounded"
+        {{if .Surname}}
+        value="{{.Surname}}"
+        {{end}}
+        />
     </div>
 
     <div class="py-2">
-        <label for="surname" class="text-sm font-semibold">Surname</label>
-        <input name="surname" id="surname" placeholder="Surname" required autocomplete="surname" class="w-full px-3 py-2 border border-gray-300 placeholder-gray-600 text-gray-800 rounded"/>
+        <label 
+            for="password" 
+            class="text-sm font-semibold">
+            Password
+        </label>
+        <input 
+        name="password" 
+        id="password" 
+        type="password" 
+        placeholder="Password" 
+        required 
+        class="
+        w-full 
+        px-3 
+        py-2 
+        border 
+        border-gray-300 
+        placeholder-gray-600 
+        text-gray-800 
+        rounded"
+        {{if not .InvalidEmail}} 
+        {{if .NoMatch}}
+        autofocus
+        {{end}}
+        {{end}}
+        />
     </div>
 
     <div class="py-2">
-        <label for="password" class="text-sm font-semibold">Password</label>
-        <input name="password" id="password" type="password" placeholder="Password" required class="w-full px-3 py-2 border border-gray-300 placeholder-gray-600 text-gray-800 rounded"/>
+        <label 
+            for="confirm" 
+            class="text-sm 
+            font-semibold">
+            Confirm Password
+        </label>
+        <input 
+        name="confirm" 
+        id="confirm" 
+        type="password" 
+        placeholder="Confirm Password" 
+        required 
+        class="
+        w-full 
+        px-3 
+        py-2 
+        border 
+        border-gray-300 
+        placeholder-gray-600 
+        text-gray-800 
+        rounded"/>
     </div>
-
-    <div class="py-2">
-        <label for="confirm" class="text-sm font-semibold">Confirm Password</label>
-        <input name="confirm" id="confirm" type="password" placeholder="Confirm Password" required class="w-full px-3 py-2 border border-gray-300 placeholder-gray-600 text-gray-800 rounded"/>
+    
+    {{if .NoMatch}}
+    <div class="py-1 w-full flex justify-center">
+        <p class="text-xs font-semibold text-red-500">Passwords do not match..</p>
     </div>
+    {{end}}
 
    <div class="py-4">
-        <button type="submit" class="w-full py-4 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-lg">
+        <button 
+            type="submit" 
+            class="
+            w-full 
+            py-4 
+            px-2 
+            bg-indigo-600 
+            hover:bg-indigo-700 
+            text-white 
+            rounded 
+            font-bold 
+            text-lg">
             Sign Up!
         </button>
    </div>
