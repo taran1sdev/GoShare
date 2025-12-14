@@ -28,8 +28,13 @@ func main() {
 		DB: db,
 	}
 
+	sessionService := models.SessionService{
+		DB: db,
+	}
+
 	usersC := controllers.Users{
-		UserService: &userService,
+		UserService:    &userService,
+		SessionService: &sessionService,
 	}
 
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -44,7 +49,7 @@ func main() {
 
 	r.Get("/signup", usersC.New)
 	r.Get("/signin", usersC.SignIn)
-
+	r.Get("/users/me", usersC.CurrentUser)
 	r.Post("/users", usersC.Create)
 	r.Post("/signin", usersC.Authenticate)
 

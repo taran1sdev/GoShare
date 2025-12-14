@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// This type stores our user data after authentication
 type User struct {
 	ID           int
 	Forename     string
@@ -21,6 +22,9 @@ type UserService struct {
 	DB *sql.DB
 }
 
+// This type is used for unauthenticated users during sign in / register
+// it's used to pass data to the view and handle cases where the user
+// submits invalid data
 type NewUser struct {
 	Email        string
 	Forename     string
@@ -32,6 +36,7 @@ type NewUser struct {
 	AuthFailed   bool
 }
 
+// Helper functions for password hashing
 func getHashedPassword(password string) (string, error) {
 	hashBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -45,43 +50,58 @@ func checkPassword(hash []byte, password string) bool {
 	return bcrypt.CompareHashAndPassword(hash, []byte(password)) == nil
 }
 
+// Helper to check email is valid format
 func checkEmail(email string) bool {
 	_, err := mail.ParseAddress(email)
 	return err == nil
 }
 
-func (us *UserService) Create(nu *NewUser) error {
+// Register a new user
+func (us *UserService) Create(nu *NewUser) (*User, error) {
 	nu.Email = strings.ToLower(nu.Email)
 
+	// Since we are using a pointer to the NewUser type
+	// we can return an error and update the the type
+	// and the view will render the error message
+
+	// Later it might be better to define errors and hold a single
+	// error in NewUser - then create a function in the view that
+	// checks for an existing error
 	if !checkEmail(nu.Email) {
 		nu.InvalidEmail = true
-		return fmt.Errorf("invalid email address")
+		return nil, fmt.Errorf("invalid email address")
 	}
 
 	if nu.Password != nu.ConfirmPass {
 		nu.NoMatch = true
-		return fmt.Errorf("passwords do not match")
+		return nil, fmt.Errorf("passwords do not match")
 	}
 
 	hash, err := getHashedPassword(nu.Password)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	user := &User{
+		Email:        nu.Email,
+		Forename:     nu.Forename,
+		Surname:      nu.Surname,
+		PasswordHash: hash,
 	}
 
 	row := us.DB.QueryRow(`
 		INSERT INTO users(email, forename, surname, password_hash)
 		VALUES ($1,$2,$3,$4) RETURNING id`, nu.Email, nu.Forename, nu.Surname, hash)
 
-	var id int
-	err = row.Scan(&id)
-
+	err = row.Scan(&user.ID)
 	if err != nil {
-		return fmt.Errorf("create user: %w", err)
+		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	return nil
+	return user, nil
 }
 
+// Authenticate as an existing user
 func (us *UserService) Authenticate(email, password string) (*User, error) {
 	email = strings.ToLower(email)
 
