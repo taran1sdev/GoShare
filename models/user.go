@@ -3,7 +3,6 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 	"net/mail"
 	"strings"
 
@@ -31,7 +30,6 @@ type NewUser struct {
 	InvalidEmail bool
 	NoMatch      bool
 	AuthFailed   bool
-	CSRFField    template.HTML
 }
 
 func getHashedPassword(password string) (string, error) {

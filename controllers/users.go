@@ -3,7 +3,6 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/gorilla/csrf"
 	"taran1s.share/models"
 )
 
@@ -19,9 +18,7 @@ type Users struct {
 func (u Users) New(w http.ResponseWriter, r *http.Request) {
 	data := &models.NewUser{}
 
-	data.CSRFField = csrf.TemplateField(r)
-
-	u.Templates.New.Execute(w, data)
+	u.Templates.New.Execute(w, r, data)
 }
 
 func (u Users) Create(w http.ResponseWriter, r *http.Request) {
@@ -42,15 +39,13 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 		AuthFailed:   false,
 	}
 
-	data.CSRFField = csrf.TemplateField(r)
-
 	err = u.UserService.Create(data)
 	if err != nil {
-		u.Templates.New.Execute(w, data)
+		u.Templates.New.Execute(w, r, data)
 		return
 	}
 
-	u.Templates.SignIn.Execute(w, data)
+	u.Templates.SignIn.Execute(w, r, data)
 }
 
 func (u Users) SignIn(w http.ResponseWriter, r *http.Request) {
@@ -58,9 +53,8 @@ func (u Users) SignIn(w http.ResponseWriter, r *http.Request) {
 
 	data.Email = r.FormValue("email")
 	data.AuthFailed = false
-	data.CSRFField = csrf.TemplateField(r)
 
-	u.Templates.SignIn.Execute(w, data)
+	u.Templates.SignIn.Execute(w, r, data)
 }
 
 func (u Users) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +72,7 @@ func (u Users) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
 	if err != nil {
-		u.Templates.SignIn.Execute(w, data)
+		u.Templates.SignIn.Execute(w, r, data)
 		return
 	}
 
