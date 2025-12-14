@@ -68,6 +68,12 @@ func main() {
 		http.Error(w, "I think you got lost...", http.StatusNotFound)
 	})
 
+	// User middleware
+	umw := controllers.UserMiddleware{
+		SessionService: &sessionService,
+	}
+
+	// CSRF protection
 	// Hard coded and insecure for now
 	csrfKey := "gFvi45R4fy7xNVlnEeZtQbfAVCYEIAUX"
 	csrfMw := csrf.Protect(
@@ -78,5 +84,5 @@ func main() {
 
 	fmt.Println("Server starting on :3000")
 
-	http.ListenAndServe(":3000", csrfMw(r))
+	http.ListenAndServe(":3000", csrfMw(umw.SetUser(r)))
 }

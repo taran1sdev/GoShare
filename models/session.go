@@ -29,8 +29,8 @@ type SessionService struct {
 
 // Helper to hash tokens
 func (ss *SessionService) hash(token string) string {
-	tokenHash := sha256.Sum256([]byte(token))
-	return base64.URLEncoding.EncodeToString(tokenHash[:])
+	tokenhash := sha256.Sum256([]byte(token))
+	return base64.URLEncoding.EncodeToString(tokenhash[:])
 }
 
 func (ss *SessionService) Create(userID int) (*Session, error) {
@@ -69,12 +69,12 @@ func (ss *SessionService) User(token string) (*User, error) {
 	user := User{}
 
 	row := ss.DB.QueryRow(`
-		SELECT sessions.user_id, users.email, users.forename, users.surname
+		SELECT users.id, users.email, users.forename, users.surname, users.password_hash
 		FROM sessions
-		INNER JOIN users ON sessions.user_id = users.id
+		JOIN users ON sessions.user_id = users.id
 		WHERE sessions.token_hash = $1`, ss.hash(token))
 
-	err := row.Scan(&user.ID, &user.Email, &user.Forename, &user.Surname)
+	err := row.Scan(&user.ID, &user.Email, &user.Forename, &user.Surname, &user.PasswordHash)
 	if err != nil {
 		return nil, fmt.Errorf("user: %w", err)
 	}
