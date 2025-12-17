@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io/fs"
-	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -22,17 +21,6 @@ type PostgresConfig struct {
 func (cfg PostgresConfig) String() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Database, cfg.SSLMode)
-}
-
-func DefaultPostgresConfig() PostgresConfig {
-	return PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		User:     os.Getenv("DBUSER"),
-		Password: os.Getenv("DBPASS"),
-		Database: os.Getenv("DBNAME"),
-		SSLMode:  "disable",
-	}
 }
 
 // Open an SQL connection - callers must close the connection

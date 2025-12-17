@@ -125,3 +125,22 @@ func (us *UserService) Authenticate(email, password string) (*User, error) {
 
 	return user, nil
 }
+
+func (us *UserService) UpdatePassword(userID int, password string) error {
+	hashedBytes, err := getHashedPassword(password)
+	if err != nil {
+		return fmt.Errorf("updatePassword: %w", err)
+	}
+
+	passwordHash := string(hashedBytes)
+	_, err = us.DB.Exec(`
+		UPDATE users
+		SET password_hash = $2
+		WHERE id = $1;`, userID, passwordHash)
+
+	if err != nil {
+		return fmt.Errorf("updatePassword: %w", err)
+	}
+
+	return nil
+}
