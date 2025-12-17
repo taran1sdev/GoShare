@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/fs"
+	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -27,9 +28,9 @@ func DefaultPostgresConfig() PostgresConfig {
 	return PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
-		User:     "goshare",
-		Password: "goshare",
-		Database: "goshare",
+		User:     os.Getenv("DBUSER"),
+		Password: os.Getenv("DBPASS"),
+		Database: os.Getenv("DBNAME"),
 		SSLMode:  "disable",
 	}
 }

@@ -108,7 +108,6 @@ func (u Users) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
 	if err != nil {
-		fmt.Println(err)
 		u.Templates.SignIn.Execute(w, r, data)
 		return
 	}
