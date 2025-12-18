@@ -15,6 +15,8 @@ const (
 	DefaultResetDuration = 1 * time.Hour
 )
 
+var ErrTokenExpired error = fmt.Errorf("Token expired")
+
 type PasswordReset struct {
 	ID     int
 	UserID int
@@ -120,7 +122,7 @@ func (service *PasswordResetService) Consume(token string) (*User, error) {
 	}
 
 	if time.Now().After(pwReset.ExpiresAt) {
-		return nil, fmt.Errorf("token expired: %v", token)
+		return nil, ErrTokenExpired
 	}
 
 	err = service.delete(pwReset.ID)

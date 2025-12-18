@@ -6,8 +6,11 @@ import (
 	"net/url"
 
 	"taran1s.share/context"
+	"taran1s.share/errors"
 	"taran1s.share/models"
 )
+
+var ErrGeneric error = fmt.Errorf("Something went wrong... Please try again")
 
 type UserMiddleware struct {
 	SessionService *models.SessionService
@@ -30,6 +33,17 @@ func (umw UserMiddleware) SetUser(next http.Handler) http.Handler {
 		}
 		ctx := context.WithUser(r.Context(), user)
 		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (umw UserMiddleware) RequireUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := context.User(r.Context())
+		if user == nil {
+			http.Redirect(w, r, "/signin", http.StatusFound)
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -63,25 +77,26 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := &models.NewUser{
-		Email:        r.FormValue("email"),
-		Forename:     r.FormValue("forename"),
-		Surname:      r.FormValue("surname"),
-		Password:     r.FormValue("password"),
-		ConfirmPass:  r.FormValue("confirm"),
-		InvalidEmail: false,
-		NoMatch:      false,
-		AuthFailed:   false,
+		Email:       r.FormValue("email"),
+		Forename:    r.FormValue("forename"),
+		Surname:     r.FormValue("surname"),
+		Password:    r.FormValue("password"),
+		ConfirmPass: r.FormValue("confirm"),
 	}
 
 	user, err := u.UserService.Create(data)
 	if err != nil {
-		u.Templates.New.Execute(w, r, data)
+		if errors.Is(models.ErrInvalidEmail, err) ||
+			errors.Is(models.ErrPasswordMatch, err) ||
+			errors.Is(models.ErrEmailExists, err) {
+			err = errors.Public(err, err.Error())
+		}
+		u.Templates.New.Execute(w, r, data, err)
 		return
 	}
 
 	session, err := u.SessionService.Create(user.ID)
 	if err != nil {
-		fmt.Println(err)
 		http.Redirect(w, r, "/signin", http.StatusFound)
 		return
 	}
@@ -94,34 +109,30 @@ func (u Users) SignIn(w http.ResponseWriter, r *http.Request) {
 	data := &models.NewUser{}
 
 	data.Email = r.FormValue("email")
-	data.AuthFailed = false
 
 	u.Templates.SignIn.Execute(w, r, data)
 }
 
 func (u Users) Authenticate(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	data := &models.NewUser{
-		Email:      r.FormValue("email"),
-		Password:   r.FormValue("password"),
-		AuthFailed: true,
+		Email:    r.FormValue("email"),
+		Password: r.FormValue("password"),
 	}
 
 	user, err := u.UserService.Authenticate(data.Email, data.Password)
+
 	if err != nil {
-		u.Templates.SignIn.Execute(w, r, data)
+		if errors.Is(models.ErrInvalidCredentials, err) {
+			err = errors.Public(err, err.Error())
+		}
+
+		u.Templates.SignIn.Execute(w, r, data, err)
 		return
 	}
 
 	session, err := u.SessionService.Create(user.ID)
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		u.Templates.SignIn.Execute(w, r, data, err)
 		return
 	}
 
@@ -148,7 +159,6 @@ func (u Users) SignOut(w http.ResponseWriter, r *http.Request) {
 
 	err = u.SessionService.Delete(token)
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, "Something went wrong..", http.StatusInternalServerError)
 		return
 	}
@@ -168,12 +178,6 @@ func (u Users) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, "Could not find the email in the form..", http.StatusBadRequest)
-		return
-	}
-
 	var data struct {
 		Email string
 	}
@@ -181,9 +185,7 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	pwReset, err := u.PasswordResetService.Create(data.Email)
 	if err != nil {
-		// Handle user does not exist etc later (or generic "if exists email sent"
-		fmt.Println(err)
-		http.Error(w, "Something went wrong..", http.StatusInternalServerError)
+		u.Templates.ForgotPassword.Execute(w, r, data, err)
 		return
 	}
 
@@ -195,8 +197,7 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 	resetURL := "http://localhost:3000/reset-pw?" + vals.Encode()
 	err = u.EmailService.ForgotPassword(data.Email, resetURL)
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "Something went wrong..", http.StatusInternalServerError)
+		u.Templates.ForgotPassword.Execute(w, r, data, err)
 		return
 	}
 
@@ -206,6 +207,7 @@ func (u Users) ProcessForgotPassword(w http.ResponseWriter, r *http.Request) {
 func (u Users) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Token string
+		Error string
 	}
 
 	data.Token = r.FormValue("token")
@@ -231,7 +233,11 @@ func (u Users) ProcessResetPassword(w http.ResponseWriter, r *http.Request) {
 	user, err := u.PasswordResetService.Consume(data.Token)
 	if err != nil {
 		fmt.Println(err)
-		http.Error(w, "Something went wrong...", http.StatusInternalServerError)
+		if errors.Is(models.ErrTokenExpired, err) {
+			err = errors.Public(err, err.Error())
+		}
+
+		u.Templates.ForgotPassword.Execute(w, r, data, err)
 		return
 	}
 

@@ -2,10 +2,13 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/mail"
 	"strings"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -26,14 +29,11 @@ type UserService struct {
 // it's used to pass data to the view and handle cases where the user
 // submits invalid data
 type NewUser struct {
-	Email        string
-	Forename     string
-	Surname      string
-	Password     string
-	ConfirmPass  string
-	InvalidEmail bool
-	NoMatch      bool
-	AuthFailed   bool
+	Email       string
+	Forename    string
+	Surname     string
+	Password    string
+	ConfirmPass string
 }
 
 // Helper functions for password hashing
@@ -64,17 +64,12 @@ func (us *UserService) Create(nu *NewUser) (*User, error) {
 	// we can return an error and update the the type
 	// and the view will render the error message
 
-	// Later it might be better to define errors and hold a single
-	// error in NewUser - then create a function in the view that
-	// checks for an existing error
 	if !checkEmail(nu.Email) {
-		nu.InvalidEmail = true
-		return nil, fmt.Errorf("invalid email address")
+		return nil, ErrInvalidEmail
 	}
 
 	if nu.Password != nu.ConfirmPass {
-		nu.NoMatch = true
-		return nil, fmt.Errorf("passwords do not match")
+		return nil, ErrPasswordMatch
 	}
 
 	hash, err := getHashedPassword(nu.Password)
@@ -95,6 +90,12 @@ func (us *UserService) Create(nu *NewUser) (*User, error) {
 
 	err = row.Scan(&user.ID)
 	if err != nil {
+		var pgError *pgconn.PgError
+		if errors.As(err, &pgError) {
+			if pgError.Code == pgerrcode.UniqueViolation {
+				return nil, ErrEmailExists
+			}
+		}
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
@@ -115,12 +116,15 @@ func (us *UserService) Authenticate(email, password string) (*User, error) {
 		WHERE email=$1`, email)
 
 	err := row.Scan(&user.ID, &user.PasswordHash, &user.Forename, &user.Surname)
+	if errors.Is(sql.ErrNoRows, err) {
+		return nil, ErrInvalidCredentials
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	if !checkPassword([]byte(user.PasswordHash), password) {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
 	return user, nil

@@ -85,11 +85,6 @@ func main() {
 		fmt.Println(err)
 	}
 
-	r := chi.NewRouter()
-
-	r.Get("/", controllers.StaticHandler(
-		views.Must(views.ParseFS(templates.FS, "layout.gohtml", "hello.gohtml"))))
-
 	userService := &models.UserService{
 		DB: db,
 	}
@@ -138,6 +133,42 @@ func main() {
 		"layout.gohtml", "resetpw.gohtml",
 	))
 
+	galleryService := &models.GalleryService{
+		DB: db,
+	}
+
+	galleriesC := controllers.Galleries{
+		GalleryService: galleryService,
+	}
+
+	galleriesC.Templates.New = views.Must(views.ParseFS(
+		templates.FS,
+		"layout.gohtml", "newgallery.gohtml",
+	))
+
+	galleriesC.Templates.Edit = views.Must(views.ParseFS(
+		templates.FS,
+		"layout.gohtml", "editgallery.gohtml",
+	))
+
+	// User middleware
+	umw := controllers.UserMiddleware{
+		SessionService: sessionService,
+	}
+
+	// CSRF protection
+	csrfMw := csrf.Protect(
+		[]byte(cfg.CSRF.Key),
+		csrf.Secure(cfg.CSRF.Secure),
+		csrf.TrustedOrigins([]string{"localhost:3000"}),
+		csrf.Path("/"),
+	)
+
+	r := chi.NewRouter()
+
+	r.Get("/", controllers.StaticHandler(
+		views.Must(views.ParseFS(templates.FS, "layout.gohtml", "hello.gohtml"))))
+
 	r.Get("/signup", usersC.New)
 	r.Post("/users", usersC.Create)
 
@@ -154,22 +185,19 @@ func main() {
 
 	r.Get("/users/me", usersC.CurrentUser)
 
+	r.Route("/galleries", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(umw.RequireUser)
+			r.Get("/new", galleriesC.New)
+			r.Post("/", galleriesC.Create)
+			r.Get("/{id}/edit", galleriesC.Edit)
+			r.Post("/{id}", galleriesC.Update)
+		})
+	})
+
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "I think you got lost...", http.StatusNotFound)
 	})
-
-	// User middleware
-	umw := controllers.UserMiddleware{
-		SessionService: sessionService,
-	}
-
-	// CSRF protection
-	// Hard coded and insecure for now
-	csrfMw := csrf.Protect(
-		[]byte(cfg.CSRF.Key),
-		csrf.Secure(cfg.CSRF.Secure),
-		csrf.TrustedOrigins([]string{"localhost:3000"}),
-	)
 
 	fmt.Println("Server starting on :3000")
 
