@@ -50,11 +50,10 @@
           >
           Update
         </button>
-
+</form>
             <div class="py-4">
                 <h2>Dangerous actions</h2>
-                <form action="/galleries/{{.ID}}/delete" method="POST" 
-                onsubmit="return confirm('Are you sure you want to delete this gallery?');">
+                <form action="/galleries/{{.ID}}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this gallery?');">
                     <div class="hidden">
                         {{csrfField}}
                     </div>

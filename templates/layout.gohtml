@@ -8,8 +8,8 @@
 <body class="min-h-screen bg-gray-100">
     <header class="bg-gradient-to-r from-purple-600 via-cyan-400 to-indigo-800 text-white">
         <nav class="px-8 py-6 flex items-center">
-            <div class="text-4xl pr-8 font-serif">GoShare</div>
-            <div class="flex-grow">
+            <div class="text-4xl pr-12 font-serif">GoShare</div>
+            <div class="flex flex-grow items-center">
                 <a 
                     class="text-lg font-semibold hover:text-blue-100 pr-8" 
                     href="/">Home
@@ -18,9 +18,20 @@
                     class="text-lg font-semibold hover:text-blue-100 pr-8" 
                     href="/contact">Contact
                 </a>               
+            
+            {{if currentUser}}
+            <div class="flex-grow flex flex-row-reverse">
+                <a class="text-lg font-semibold hover:text-blue-100 pr-8"
+                    href="/galleries">
+                    My Galleries
+                </a>
             </div>
-        
-            <div class="pr-2">
+            {{else}}
+            <div class="flex-grow"></div>
+            {{end}}
+            </div>
+                    
+            <div>
                 {{if currentUser}}
                 <form action="/signout" method="post" class="inline pr-4">
                     <div class="hidden">
@@ -30,7 +41,7 @@
                 </form>
                 {{else}}
                 <a 
-                    class="px-4 py-2 pr-4 bg-purple-600 hover:blue-100 rounded" 
+                    class="px-4 py-2 pr-4 hover:blue-100 rounded" 
                     href="/signin">
                     Sign in
                 </a>
@@ -46,7 +57,7 @@
         </nav>
     </header>
       {{if errors}}
-    <div class="py-4 px-2">
+    <div class="py-2 px-2">
       {{range errors}}
         <div class="closeable flex bg-red-100 rounded px-2 py-2 text-red-800 mb-2">
           <div class="flex-grow">

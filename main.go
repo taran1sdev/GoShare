@@ -141,6 +141,11 @@ func main() {
 		GalleryService: galleryService,
 	}
 
+	galleriesC.Templates.Show = views.Must(views.ParseFS(
+		templates.FS,
+		"layout.gohtml", "showgallery.gohtml",
+	))
+
 	galleriesC.Templates.New = views.Must(views.ParseFS(
 		templates.FS,
 		"layout.gohtml", "newgallery.gohtml",
@@ -149,6 +154,11 @@ func main() {
 	galleriesC.Templates.Edit = views.Must(views.ParseFS(
 		templates.FS,
 		"layout.gohtml", "editgallery.gohtml",
+	))
+
+	galleriesC.Templates.Index = views.Must(views.ParseFS(
+		templates.FS,
+		"layout.gohtml", "index.gohtml",
 	))
 
 	// User middleware
@@ -188,10 +198,13 @@ func main() {
 	r.Route("/galleries", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(umw.RequireUser)
+			r.Get("/", galleriesC.Index)
 			r.Get("/new", galleriesC.New)
 			r.Post("/", galleriesC.Create)
 			r.Get("/{id}/edit", galleriesC.Edit)
+			r.Get("/{id}", galleriesC.Show)
 			r.Post("/{id}", galleriesC.Update)
+			r.Post("/{id}/delete", galleriesC.Delete)
 		})
 	})
 
